@@ -205,6 +205,8 @@ public final class CollectionViewChatLayout: UICollectionViewLayout {
 
     private let _flipsHorizontallyInOppositeLayoutDirection: Bool
 
+    private var reconfigureItemsIndexPaths: [IndexPath] = []
+
     // MARK: IOS 15.1 fix flags
 
     private var needsIOS15_1IssueFix: Bool {
@@ -283,15 +285,27 @@ public final class CollectionViewChatLayout: UICollectionViewLayout {
         guard let collectionView else {
             return
         }
+
+        // We do not want to return attributes while we just looking for a position so that `UICollectionView` wont
+        // create unnecessary cells that may not be used when we find the actual position.
+        dontReturnAttributes = true
         collectionView.setNeedsLayout()
         collectionView.layoutIfNeeded()
         currentPositionSnapshot = snapshot
         let context = ChatLayoutInvalidationContext()
         context.invalidateLayoutMetrics = false
         invalidateLayout(with: context)
+
+        dontReturnAttributes = false
         collectionView.setNeedsLayout()
         collectionView.layoutIfNeeded()
         currentPositionSnapshot = nil
+    }
+
+    /// If you want to use new `UICollectionView.reconfigureItems(..)` api and expect the reconfiguration to happen animated as well
+    /// - you must call this method next to the `UICollectionView` one. `UIKit` in its classic way uses private API to process it.
+    public func reconfigureItems(at indexPaths: [IndexPath]) {
+        reconfigureItemsIndexPaths = indexPaths
     }
 
     // MARK: Providing Layout Attributes
@@ -523,7 +537,7 @@ public final class CollectionViewChatLayout: UICollectionViewLayout {
         let newItemSize = itemSize(with: preferredMessageAttributes)
         let newInterItemSpacing = interItemSpacing(for: preferredMessageAttributes.kind, at: preferredMessageAttributes.indexPath)
         let newItemAlignment: ChatItemAlignment
-        if controller.reloadedIndexes.contains(preferredMessageAttributes.indexPath) {
+        if controller.reloadedIndexes.contains(preferredMessageAttributes.indexPath) || reconfigureItemsIndexPaths.contains(preferredMessageAttributes.indexPath) {
             newItemAlignment = alignment(for: preferredMessageAttributes.kind, at: preferredMessageAttributes.indexPath)
         } else {
             newItemAlignment = preferredMessageAttributes.alignment
@@ -684,6 +698,23 @@ public final class CollectionViewChatLayout: UICollectionViewLayout {
         controller.process(changeItems: changeItems)
         state = .afterUpdate
         dontReturnAttributes = false
+
+        if !reconfigureItemsIndexPaths.isEmpty,
+           let collectionView {
+            reconfigureItemsIndexPaths
+                .filter { collectionView.indexPathsForVisibleItems.contains($0) && !controller.reloadedIndexes.contains($0) }
+                .forEach { indexPath in
+                    let cell = collectionView.cellForItem(at: indexPath)
+
+                    if let originalAttributes = controller.itemAttributes(for: indexPath.itemPath, kind: .cell, at: .beforeUpdate),
+                       let preferredAttributes = cell?.preferredLayoutAttributesFitting(originalAttributes),
+                       shouldInvalidateLayout(forPreferredLayoutAttributes: preferredAttributes, withOriginalAttributes: originalAttributes) {
+                        _ = invalidationContext(forPreferredLayoutAttributes: preferredAttributes, withOriginalAttributes: originalAttributes)
+                    }
+                }
+            reconfigureItemsIndexPaths = []
+        }
+
         super.prepare(forCollectionViewUpdates: updateItems)
     }
 
