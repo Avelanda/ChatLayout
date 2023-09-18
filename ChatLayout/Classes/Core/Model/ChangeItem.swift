@@ -142,13 +142,13 @@ extension ChangeItem: Comparable {
             } else {
                 return lInitialSectionIndex < rInitialSectionIndex
             }
-        case let (.itemMove(initialItemIndexPath: lInitialIndexPath, finalItemIndexPath: lFinalIndexPath),
-                  .itemMove(initialItemIndexPath: rInitialIndexPath, finalItemIndexPath: rFinalIndexPath)):
-            if lInitialIndexPath == rInitialIndexPath {
-                return lFinalIndexPath < rFinalIndexPath
-            } else {
-                return lInitialIndexPath < rInitialIndexPath
-            }
+        case let (.itemMove(initialItemIndexPath: _, finalItemIndexPath: lFinalIndexPath),
+                  .itemMove(initialItemIndexPath: _, finalItemIndexPath: rFinalIndexPath)):
+            return lFinalIndexPath < rFinalIndexPath
+        case let (.itemInsert(itemIndexPath: lIndexPath), .itemMove(initialItemIndexPath: _, finalItemIndexPath: rfinalItemIndexPath)):
+            return lIndexPath < rfinalItemIndexPath
+        case let (.itemMove(initialItemIndexPath: _, finalItemIndexPath: lfinalItemIndexPath), .itemInsert(itemIndexPath: rIndexPath)):
+            return lfinalItemIndexPath < rIndexPath
         default:
             return lhs.rawValue < rhs.rawValue
         }
