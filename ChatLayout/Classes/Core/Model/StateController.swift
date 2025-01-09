@@ -926,7 +926,7 @@ final class StateController<Layout: ChatLayoutRepresentation> {
             // Debug purposes only.
             var attributes = [ChatLayoutAttributes]()
             attributes.reserveCapacity(layout.sections.reduce(into: 0) { $0 += $1.items.count })
-            layout.sections.enumerated().forEach { sectionIndex, section in
+            for (sectionIndex, section) in layout.sections.enumerated() {
                 let sectionPath = ItemPath(item: 0, section: sectionIndex)
                 if let headerAttributes = itemAttributes(for: sectionPath, kind: .header, at: state, additionalAttributes: additionalAttributes) {
                     attributes.append(headerAttributes)
@@ -934,7 +934,7 @@ final class StateController<Layout: ChatLayoutRepresentation> {
                 if let footerAttributes = itemAttributes(for: sectionPath, kind: .footer, at: state, additionalAttributes: additionalAttributes) {
                     attributes.append(footerAttributes)
                 }
-                section.items.enumerated().forEach { itemIndex, _ in
+                for itemIndex in 0..<section.items.count {
                     let itemPath = ItemPath(item: itemIndex, section: sectionIndex)
                     if let itemAttributes = itemAttributes(for: itemPath, kind: .cell, at: state, additionalAttributes: additionalAttributes) {
                         attributes.append(itemAttributes)
